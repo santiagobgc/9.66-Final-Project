@@ -10,6 +10,7 @@ from itertools import combinations
 santi_winprobs = [0.2, 0.1, 0.7, 0.15, 0.25, 0.4, 0.9, 0.3, 0.1, 0.2, 0.1, 0.85, 0.6, 0.15, 0.25,
                   0.55, 0.9, 0.55, 0.8, 0.99, 0.75, 0.85, 0.3, 0.4, 0.25, 0.25, 0.55, 0.6, 0.15, 0.95, 0.1, 0.95]
 santi_money = [10,11,9,9,9,5,7,1,10,10,9,9,9,10,8,9,9,13,14,16,18,19,19,19,18,16,16,17,17,15,19,19]
+raise_winprob_change = [-0.24, 0.1, -0.125, -0.05, 0.05, -0.05, -0.2 -0.1, -0.1, 0, -0.2, -0.1, -0.05, -0.1]
 santi_hands = []
 santi_hands.append([Card.new('Qc'), Card.new('9s')])
 santi_hands.append([Card.new('4c'), Card.new('7c')])
@@ -127,27 +128,37 @@ jack_sd = jack_var**(0.5)
 real_santi_winprobs = win_prob("Santi")
 result_santi = [x - y for x, y in zip(santi_winprobs, real_santi_winprobs)]
 santi_mean = sum(result_santi)/32
-santi_var = sum((santi_mean - i)**2 for i in result_jack)/32
+santi_var = sum((santi_mean - i)**2 for i in result_santi)/32
 print(santi_mean, santi_var)
 santi_sd = santi_var**(0.5)
+
+raise_winprob_change_mean = sum(raise_winprob_change)/len(raise_winprob_change)
+raise_winprob_change_var = sum((raise_winprob_change_mean - i)**2 for i in raise_winprob_change)/len(raise_winprob_change)
+raise_winprob_change_sd = raise_winprob_change_var**(0.5)
+
 
 with pm.Model() as model:
     jack_normal = pm.Normal("jack_normal", mu=jack_mean, sigma=jack_sd)
     santi_normal = pm.Normal("santi_normal", mu=santi_mean, sigma=santi_sd)
+    raise_normal = pm.Normal("raise_normal", mu=raise_winprob_change_mean, sigma=raise_winprob_change_sd)
     trace = pm.sample(2000, return_inferencedata=True, cores=2)
 
 # Extract samples
 jack_samples = trace.posterior["jack_normal"].values.flatten()
 santi_samples = trace.posterior["santi_normal"].values.flatten()
+raise_samples = trace.posterior["raise_normal"].values.flatten()
 
 '''
 normal_draw = pm.draw(jack_normal, 100)
 print(normal_draw)
 '''
 
+'''
 x = np.linspace(-0.5, 0.5, 1000)
-pdf = st.norm.pdf(x, jack_mean, jack_sd)
-plt.plot(x, pdf)
-plt.title("Jack")
+pdf = st.norm.pdf(x, santi_mean, santi_sd)
+pdf2 = st.norm.pdf(x, jack_mean, jack_sd)
+plt.plot(x, pdf, label="Santi", color="red")
+plt.plot(x, pdf2, label="Jack", color="blue")
 plt.show()
-
+plt.show()
+'''
