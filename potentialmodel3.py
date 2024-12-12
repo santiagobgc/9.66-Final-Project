@@ -8,6 +8,7 @@ Created on Tue Dec 10 20:44:46 2024
 
 import pymc as pm
 import data
+import random
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import Counter
@@ -127,39 +128,47 @@ class GutsGame:
         tie_prob = ties / total_scenarios
         loss_prob = losses / total_scenarios
         return (win_prob, tie_prob, loss_prob,all_strengths,all_probabilities)
+    
+    def get_probability_dist(self, player, win_prob, raise_count):
+        bluff_prob = 0.2/(raise_count + 1)
+        fold_call_boundary = max((-bluff_prob*self.pot+self.current_bet-player.total_bet) / (self.pot +self.current_bet - player.total_bet), 0.2)
+        if player.name == "Jack":
+            opponent_fold_if_raise = (0.5 - raise_count * data.raise_samples  + data.santi_samples + (1 + player.history.count("raise")) * data.raise_samples < 0.4).mean()
+        else:
+            opponent_fold_if_raise = (0.5 - raise_count * data.raise_samples + data.jack_samples + (1 + player.history.count("raise")) * data.raise_samples < 0.4).mean()
+        numerator = (1-(1-bluff_prob)*opponent_fold_if_raise)*(2*self.current_bet-player.total_bet) - (self.current_bet - player.total_bet)
+        denominator = (1-(1-bluff_prob)*opponent_fold_if_raise)*(self.pot + 3 * self.current_bet - player.total_bet) - self.pot - (self.current_bet - player.total_bet)
+        call_raise_boundary = min(numerator / denominator, 0.8)
+        if player.name == "Jack":
+          jack_fold = (data.jack_samples < fold_call_boundary - win_prob - raise_count * data.raise_samples).mean()
+          jack_call = ((fold_call_boundary- win_prob - raise_count * data.raise_samples < data.jack_samples) 
+                       & (data.jack_samples < call_raise_boundary - win_prob- raise_count * data.raise_samples)).mean()
+          jack_raise = (data.jack_samples > call_raise_boundary - win_prob- raise_count * data.raise_samples).mean()
+          values = [jack_fold, jack_call, jack_raise]
+          normal_draw = pm.draw(data.jack_normal)
+        else:
+          santi_fold = (data.santi_samples < fold_call_boundary - win_prob - raise_count * data.raise_samples).mean()
+          santi_call = ((fold_call_boundary - win_prob - raise_count * data.raise_samples < data.santi_samples) 
+                        & (data.santi_samples < call_raise_boundary - win_prob - raise_count * data.raise_samples)).mean()
+          santi_raise = (data.santi_samples > call_raise_boundary - win_prob - raise_count * data.raise_samples).mean()
+          values = [santi_fold, santi_call, santi_raise]
+          normal_draw = pm.draw(data.santi_normal)
+        return values, opponent_fold_if_raise, normal_draw
+        
+
 
 
     def player_action(self, player):
         if not player.in_hand or player.money <= 0:
             self.fold(player)
             return "fold"
-
-        win_prob, tie_prob, lose_prob, all_hands, all_probabilities = self.win_prob(player)
-
         for opponent in self.players:
             opp = opponent
             if opponent != player:
                 raise_count = opponent.history.count("raise")
                 call_count = opponent.history.count("call")
-        
-                        
-        player_hand_strength = player.evaluate_hand(self.board)
-        if player.name == "Jack":
-          jack_fold = (data.jack_samples < 0.4 - win_prob - raise_count * data.raise_samples).mean()
-          jack_call = ((0.4 - win_prob - raise_count * data.raise_samples < data.jack_samples) 
-                       & (data.jack_samples < 0.6 - win_prob- raise_count * data.raise_samples)).mean()
-          jack_raise = (data.jack_samples > 0.6 - win_prob- raise_count * data.raise_samples).mean()
-          values = [jack_fold, jack_call, jack_raise]
-          opponent_fold_if_raise =(0.5 - raise_count * data.raise_samples  + data.santi_samples + (1 + player.history.count("raise")) * data.raise_samples < 0.4).mean()
-          normal_draw = pm.draw(data.jack_normal)
-        else:
-          santi_fold = (data.santi_samples < 0.4 - win_prob - raise_count * data.raise_samples).mean()
-          santi_call = ((0.4 - win_prob - raise_count * data.raise_samples < data.santi_samples) 
-                        & (data.santi_samples < 0.6 - win_prob - raise_count * data.raise_samples)).mean()
-          santi_raise = (data.santi_samples > 0.6 - win_prob - raise_count * data.raise_samples).mean()
-          values = [santi_fold, santi_call, santi_raise]
-          opponent_fold_if_raise = (0.5 - raise_count * data.raise_samples  + data.jack_samples + (1 + player.history.count("raise")) * data.raise_samples < 0.4).mean()
-          normal_draw = pm.draw(data.santi_normal)
+        win_prob, tie_prob, lose_prob, all_hands, all_probabilities = self.win_prob(player)
+        values, opponent_fold_if_raise, normal_draw = self.get_probability_dist(player, win_prob, raise_count)
         labels = ["Fold", "Call", "Raise"]
         plt.bar(labels, values, color=["blue", "orange", "red"])
         plt.ylabel("Proportion")
@@ -169,33 +178,39 @@ class GutsGame:
           plt.title("Santi Probability of each Action")
         plt.ylim(0, 1)
         #plt.show()
-        #print(opponent_fold_if_raise)
         win_prob += normal_draw
-        tie_prob = np.sum(all_probabilities[all_hands == player_hand_strength])
-        lose_prob = 1 - (win_prob + tie_prob)  
-        bluff_prob = 0.2 / opp.history.count("raise") if opp.history.count("raise") > 0 else 0
+        win_prob = max(win_prob, 0)
+        win_prob = min(win_prob, 1)
+        bluff_prob = 0.2/(raise_count+1)
         fold_ev = 0 - bluff_prob * self.pot
-        call_ev = (self.pot) * win_prob - (self.current_bet - player.total_bet) * lose_prob
-        raise_ev = (self.pot + self.current_bet) * win_prob * (1 - opponent_fold_if_raise)  - (2 * self.current_bet - player.total_bet) * (lose_prob +bluff_prob)
+        call_ev = (self.pot) * win_prob - (self.current_bet - player.total_bet) * (1-win_prob)
+        raise_ev = (1 - (1-bluff_prob) * opponent_fold_if_raise) * ((self.pot + self.current_bet) * win_prob - (2 * self.current_bet - player.total_bet) * (1-win_prob))
         #print(f"Winning Probability: {win_prob}, Tie Probability: {tie_prob}, Losing Probability: {lose_prob}")
         #print(f"Raise: {raise_ev}, Call: {call_ev}, Fold: {fold_ev}")
-        if win_prob > 0.6: 
+        maximum = max(fold_ev, call_ev, raise_ev)
+        if maximum == raise_ev: 
             if player.money >= self.current_bet + 1:
                 self.raise_bet(player, 1)
                 player.history.append("raise")
                 print(player.name, "raise")
                 return "raise"
-        elif win_prob > 0.3:  # Example threshold for calling
+        elif maximum == call_ev:  # Example threshold for calling
             if player.money >= self.current_bet:
                 self.call(player)
                 player.history.append("call")
                 print(player.name, 'call')
                 return "call"
         else:  # Fold if probabilities are low
-            self.fold(player)
-            player.history.append("fold")
-            print(player.name, 'fold')
-            return "fold"
+            if random.random() < 0.2/(1 + player.history.count("Raise")) and player.money >= self.current_bet + 1:
+                self.raise_bet(player, 1)
+                player.history.append("raise")
+                print(player.name, "raise")
+                return "raise"
+            else:
+                self.fold(player)
+                player.history.append("fold")
+                print(player.name, 'fold')
+                return "fold"
 
 
 
@@ -265,10 +280,8 @@ for i in range(7):
   game.player1.money = data.santi_money[i]
   game.player2.money = data.jack_money[i]
   game.play_round(i)
-  '''
 game = GutsGame(player1,player2)
 for i in range(7, 32):
   game.player1.money = data.santi_money[i]
   game.player2.money = data.jack_money[i]
   game.play_round(i)
-  '''
