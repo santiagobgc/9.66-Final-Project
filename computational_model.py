@@ -127,8 +127,8 @@ class GutsGame:
     def call_update(self, player, hands, probabilities):
         q1, q3 = np.percentile(hands, [25, 75])
 
-        q1_indices = hands < q1
-        q4_indices = hands > q3
+        q1_indices = hands > q3
+        q4_indices = hands < q1
         q2_q3_indices = ~q1_indices & ~q4_indices
 
         lost_prob = np.sum(probabilities[q1_indices]) / 2 + np.sum(probabilities[q4_indices]) / 2
@@ -148,9 +148,9 @@ class GutsGame:
         q1, q3 = np.percentile(hands, [25, 75])
         median = np.median(hands)
 
-        q1_q2_indices = hands < median
-        q3_indices = (hands >= median) & (hands <= q3)
-        q4_indices = hands > q3
+        q1_q2_indices = hands > median
+        q3_indices = (hands >= q1) & (hands <= median)
+        q4_indices = hands < q1
 
         lost_prob = (
             np.sum(probabilities[q1_q2_indices]) * (3 / 4)
@@ -188,43 +188,44 @@ class GutsGame:
                             all_probabilities = self.raise_update(opponent, all_hands, all_probabilities)
                         
         player_hand_strength = player.evaluate_hand(self.board)
-        win_prob = np.sum(all_probabilities[all_hands < player_hand_strength])
+        win_prob = np.sum(all_probabilities[all_hands > player_hand_strength])
         tie_prob = np.sum(all_probabilities[all_hands == player_hand_strength])
         lose_prob = 1 - (win_prob + tie_prob)  
         bluff_prob = 0.2 / opp.history.count("raise") if opp.history.count("raise") > 0 else 0
         fold_ev = 0 - bluff_prob * self.pot
         call_ev = (self.pot) * win_prob - (self.current_bet - player.total_bet) * lose_prob
         raise_ev = (self.pot + self.current_bet) * win_prob - (2 * self.current_bet - player.total_bet) * (lose_prob +bluff_prob)
+        print(f"Start win Probability: {start_win_prob}, start Tie Probability: {start_tie_prob}, start Losing Probability: {start_lose_prob}")
         print(f"Winning Probability: {win_prob}, Tie Probability: {tie_prob}, Losing Probability: {lose_prob}")
         print(f"Raise: {raise_ev}, Call: {call_ev}, Fold: {fold_ev}")
+        print(opp.history)
         if raise_ev > call_ev and raise_ev > fold_ev:
             if player.money >= 2*self.current_bet:
                 self.raise_bet(player, self.current_bet)
                 player.history.append("raise")
-                print("R")
+                print(player.name, "raise")
                 return "raise"
             elif player.money >= self.current_bet:
                 self.call(player)
                 player.history.append("call")
-                print('C')
+                print(player.name, "call")
                 return "call"
         elif call_ev > raise_ev and call_ev > fold_ev:
             if player.money >= self.current_bet:
                 self.call(player)
                 player.history.append("call")
-                print('C')
+                print(player.name, "call")
                 return "call"
             else:
                 self.fold(player)
                 player.history.append('fold')
-                print('F')
+                print(player.name, "fold")
                 return "fold"
         else:  
             self.fold(player)
             player.history.append("fold")
-            print('F')
+            print(player.name, "fold")
             return "fold"
-
 
 
     def determine_winner(self):
