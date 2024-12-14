@@ -1,15 +1,9 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Dec 10 20:44:46 2024
-
-@author: jackmarionsims
-"""
-
+#Model 3
 import pymc as pm
 import data
 import random
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 from collections import Counter
 import random
@@ -17,6 +11,7 @@ import treys
 from treys import Deck
 from treys import Card
 from itertools import combinations 
+
 
 class Player:
     def __init__(self, name, money):
@@ -39,8 +34,6 @@ class Player:
 
 
     def evaluate_hand(self, board):
-        """Evaluate the strength of the hand. Higher value means stronger hand."""
-        # Simplified: sum of card values (can be replaced with more advanced logic)
         evaluator = treys.Evaluator()
         return evaluator.evaluate(board, self.cards)
 
@@ -67,7 +60,7 @@ class GutsGame:
             player.cards = self.deck.draw(2)
             Card.print_pretty_cards(player.cards)
             print(player.evaluate_hand(self.board))
-        Card.print_pretty_cards(self.board)
+        #Card.print_pretty_cards(self.board)
     
     def real_game(self, board, player1hand, player2hand):
         self.board = board
@@ -75,6 +68,7 @@ class GutsGame:
             player.reset()
         self.player1.cards = player1hand
         self.player2.cards = player2hand
+        #Card.print_pretty_cards(self.player2.cards)
         all_used = board + player1hand + player2hand
         for card in all_used:
             self.deck.cards.remove(card)
@@ -110,7 +104,7 @@ class GutsGame:
         ties = 0
         losses = 0
         all_strengths = []
-        for opponent_hand in pos_opponent_hands:
+        for opponent_hand in  pos_opponent_hands:
             opponent_strength = evaluator.evaluate(self.board, list(opponent_hand))
             all_strengths.append(opponent_strength)
             if hand_strength < opponent_strength:
@@ -131,31 +125,32 @@ class GutsGame:
     
     def get_probability_dist(self, player, win_prob, raise_count):
         bluff_prob = 0.2/(raise_count + 1)
-        fold_call_boundary = max((-bluff_prob*self.pot+self.current_bet-player.total_bet) / (self.pot +self.current_bet - player.total_bet), 0.2)
+        fold_call_boundary = (-bluff_prob*self.pot+self.current_bet-player.total_bet) / (self.pot +self.current_bet - player.total_bet)
         if player.name == "Jack":
             opponent_fold_if_raise = (0.5 - raise_count * data.raise_samples  + data.santi_samples + (1 + player.history.count("raise")) * data.raise_samples < 0.4).mean()
         else:
             opponent_fold_if_raise = (0.5 - raise_count * data.raise_samples + data.jack_samples + (1 + player.history.count("raise")) * data.raise_samples < 0.4).mean()
-        numerator = (1-(1-bluff_prob)*opponent_fold_if_raise)*(2*self.current_bet-player.total_bet) - (self.current_bet - player.total_bet)
-        denominator = (1-(1-bluff_prob)*opponent_fold_if_raise)*(self.pot + 3 * self.current_bet - player.total_bet) - self.pot - (self.current_bet - player.total_bet)
-        call_raise_boundary = min(numerator / denominator, 0.8)
+        self_bluff = (0.2/(player.history.count("Raise") + 1))
         if player.name == "Jack":
-          jack_fold = (data.jack_samples < fold_call_boundary - win_prob - raise_count * data.raise_samples).mean()
-          jack_call = ((fold_call_boundary- win_prob - raise_count * data.raise_samples < data.jack_samples) 
-                       & (data.jack_samples < call_raise_boundary - win_prob- raise_count * data.raise_samples)).mean()
-          jack_raise = (data.jack_samples > call_raise_boundary - win_prob- raise_count * data.raise_samples).mean()
-          values = [jack_fold, jack_call, jack_raise]
+          jack_fold = (data.jack_samples < 0.4 - win_prob - raise_count * data.raise_samples).mean()
+          jack_fold_with_bluff = jack_fold * (1-self_bluff)
+          jack_call = ((0.4 - win_prob - raise_count * data.raise_samples < data.jack_samples) 
+                       & (data.jack_samples < 0.6 - win_prob- raise_count * data.raise_samples)).mean()
+          jack_raise = (data.jack_samples > 0.6 - win_prob- raise_count * data.raise_samples).mean()
+          jack_raise_with_bluff = self_bluff * jack_fold + jack_raise
+          values = [jack_fold_with_bluff, jack_call, jack_raise_with_bluff]
           normal_draw = pm.draw(data.jack_normal)
         else:
-          santi_fold = (data.santi_samples < fold_call_boundary - win_prob - raise_count * data.raise_samples).mean()
-          santi_call = ((fold_call_boundary - win_prob - raise_count * data.raise_samples < data.santi_samples) 
-                        & (data.santi_samples < call_raise_boundary - win_prob - raise_count * data.raise_samples)).mean()
-          santi_raise = (data.santi_samples > call_raise_boundary - win_prob - raise_count * data.raise_samples).mean()
-          values = [santi_fold, santi_call, santi_raise]
+          santi_fold = (data.santi_samples < 0.4 - win_prob - raise_count * data.raise_samples).mean()
+          santi_fold_with_bluff = santi_fold * (1-self_bluff)
+          santi_call = ((0.4 - win_prob - raise_count * data.raise_samples < data.santi_samples) 
+                        & (data.santi_samples < 0.6 - win_prob - raise_count * data.raise_samples)).mean()
+          santi_raise = (data.santi_samples > 0.6 - win_prob - raise_count * data.raise_samples).mean()
+          santi_raise_with_bluff = self_bluff * santi_fold + santi_raise
+          values = [santi_fold_with_bluff, santi_call, santi_raise_with_bluff]
           normal_draw = pm.draw(data.santi_normal)
         return values, opponent_fold_if_raise, normal_draw
         
-
 
 
     def player_action(self, player):
@@ -163,12 +158,11 @@ class GutsGame:
             self.fold(player)
             return "fold"
         for opponent in self.players:
-            opp = opponent
             if opponent != player:
                 raise_count = opponent.history.count("raise")
-                call_count = opponent.history.count("call")
         win_prob, tie_prob, lose_prob, all_hands, all_probabilities = self.win_prob(player)
         values, opponent_fold_if_raise, normal_draw = self.get_probability_dist(player, win_prob, raise_count)
+        #print(player.name, values)
         labels = ["Fold", "Call", "Raise"]
         plt.bar(labels, values, color=["blue", "orange", "red"])
         plt.ylabel("Proportion")
@@ -177,30 +171,28 @@ class GutsGame:
         else:
           plt.title("Santi Probability of each Action")
         plt.ylim(0, 1)
-        #plt.show()
+        plt.show()
         win_prob += normal_draw
         win_prob = max(win_prob, 0)
         win_prob = min(win_prob, 1)
-        bluff_prob = 0.2/(raise_count+1)
-        fold_ev = 0 - bluff_prob * self.pot
-        call_ev = (self.pot) * win_prob - (self.current_bet - player.total_bet) * (1-win_prob)
-        raise_ev = (1 - (1-bluff_prob) * opponent_fold_if_raise) * ((self.pot + self.current_bet) * win_prob - (2 * self.current_bet - player.total_bet) * (1-win_prob))
-        #print(f"Winning Probability: {win_prob}, Tie Probability: {tie_prob}, Losing Probability: {lose_prob}")
-        #print(f"Raise: {raise_ev}, Call: {call_ev}, Fold: {fold_ev}")
-        maximum = max(fold_ev, call_ev, raise_ev)
-        if maximum == raise_ev: 
+        if win_prob > 0.6: 
+            if player.name == "Santi":
+                self.call(player)
+                player.history.append("call")
+                print(player.name, 'call')
+                return "call"
             if player.money >= self.current_bet + 1:
                 self.raise_bet(player, 1)
                 player.history.append("raise")
                 print(player.name, "raise")
                 return "raise"
-        elif maximum == call_ev:  # Example threshold for calling
+        elif win_prob > 0.4:  # Example threshold for calling
             if player.money >= self.current_bet:
                 self.call(player)
                 player.history.append("call")
                 print(player.name, 'call')
                 return "call"
-        else:  # Fold if probabilities are low
+        else:
             if random.random() < 0.2/(1 + player.history.count("Raise")) and player.money >= self.current_bet + 1:
                 self.raise_bet(player, 1)
                 player.history.append("raise")
@@ -231,7 +223,7 @@ class GutsGame:
         self.pot = 0
         self.current_bet = 0
 
-        # Starting player bets $1
+        actions = []
         starting_player = self.players[self.current_player_index]
         if starting_player.money >= 1:
             self.raise_bet(starting_player, 1)
@@ -242,6 +234,7 @@ class GutsGame:
         while True:
             new_bet = False
             action = self.player_action(curr_player)
+            actions.append(action)
             if action == "raise":
                 new_bet = True
                 curr_idx = 1 - curr_idx
@@ -255,33 +248,50 @@ class GutsGame:
                     curr_player = self.players[curr_idx]
             first_turn = False
 
-        # Determine the winner
+        all_actions.append(actions)
         winner = self.determine_winner()
-        print(f"Winner of this round: {winner.name} with ${winner.money}")
+        #print(f"Winner of this round: {winner.name} with ${winner.money}")
         self.rotate_starting_player()
         return winner
 
     def play_game(self):
         while all(p.money > 0 for p in self.players):
-            print(f"Starting a new round. Pot: ${self.pot}")
+            #print(f"Starting a new round. Pot: ${self.pot}")
             winner = self.play_round()
             if winner:
-                print(f"{winner.name} wins the pot! Current money: {winner.money}")
+                pass
+                #print(f"{winner.name} wins the pot! Current money: {winner.money}")
 
         winner = max(self.players, key=lambda p: p.money)
-        print(f"Game over! The winner is {winner.name} with ${winner.money}")
+        #print(f"Game over! The winner is {winner.name} with ${winner.money}")
+
 
 # Example usage
-
+all_actions = []
 player1 = Player("Santi", 10)
 player2 = Player("Jack", 10)
-game = GutsGame(player1, player2)
+
+for i in range(500):
+  game = GutsGame(player1,player2)
+  game.player1.money = data.santi_money[6]
+  game.player2.money = data.jack_money[6]
+  game.play_round(6)
+  print('')
+#print(all_actions.count(["raise",'call']) / len(all_actions))
+
+
+'''
 for i in range(7):
   game.player1.money = data.santi_money[i]
   game.player2.money = data.jack_money[i]
+  print("Round", str(i+1))
   game.play_round(i)
+  print("")
 game = GutsGame(player1,player2)
 for i in range(7, 32):
   game.player1.money = data.santi_money[i]
   game.player2.money = data.jack_money[i]
+  print("Round", str(i+1))
   game.play_round(i)
+  print('')
+  '''
