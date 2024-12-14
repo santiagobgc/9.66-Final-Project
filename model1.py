@@ -27,8 +27,6 @@ class Player:
 
 
     def evaluate_hand(self, board):
-        """Evaluate the strength of the hand. Higher value means stronger hand."""
-        # Simplified: sum of card values (can be replaced with more advanced logic)
         evaluator = treys.Evaluator()
         return evaluator.evaluate(board, self.cards)
 
@@ -161,7 +159,6 @@ class GutsGame:
         self.pot = 0
         self.current_bet = 0
 
-        # Starting player bets $1
         starting_player = self.players[self.current_player_index]
         if starting_player.money >= 1:
             self.raise_bet(starting_player, 1)
@@ -186,7 +183,6 @@ class GutsGame:
                     curr_player = self.players[curr_idx]
             first_turn = False
 
-        # Determine the winner
         winner = self.determine_winner()
         print(f"Winner of this round: {winner.name} with ${winner.money}")
         self.rotate_starting_player()
@@ -203,7 +199,7 @@ class GutsGame:
         winner = max(self.players, key=lambda p: p.money)
         print(f"Game over! The winner is {winner.name} with ${winner.money}")
 
-# Example usage
+
 player1 = Player("Santi", 10)
 player2 = Player("Jack", 10)
 game = GutsGame(player1,player2)
