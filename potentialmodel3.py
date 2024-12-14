@@ -1,11 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Dec 10 20:44:46 2024
-
-@author: jackmarionsims
-"""
-
+#Model 3
 import pymc as pm
 import data
 import random
@@ -41,8 +34,6 @@ class Player:
 
 
     def evaluate_hand(self, board):
-        """Evaluate the strength of the hand. Higher value means stronger hand."""
-        # Simplified: sum of card values (can be replaced with more advanced logic)
         evaluator = treys.Evaluator()
         return evaluator.evaluate(board, self.cards)
 
@@ -257,7 +248,6 @@ class GutsGame:
                     curr_player = self.players[curr_idx]
             first_turn = False
 
-        # Determine the winner
         all_actions.append(actions)
         winner = self.determine_winner()
         #print(f"Winner of this round: {winner.name} with ${winner.money}")
