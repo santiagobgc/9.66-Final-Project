@@ -174,83 +174,85 @@ class GutsGame:
         return probabilities
 
 
-    def player_action1(self, player):
-        if not player.in_hand or player.money <= 0:
-            self.fold(player)
-            return "fold"
-
-        start_win_prob, start_tie_prob, start_lose_prob, all_hands, all_probabilities = self.win_prob(player)
-
-        for opponent in self.players:
-            if opponent != player:
-                opp = opponent
-                for action in opponent.history:
-                    if action == "call":
-                        all_probabilities = self.call_update(opponent, all_hands, all_probabilities)
-                    elif action == "raise":
-                            all_probabilities = self.raise_update(opponent, all_hands, all_probabilities)
-                        
-        player_hand_strength = player.evaluate_hand(self.board)
-        win_prob = np.sum(all_probabilities[all_hands > player_hand_strength])
-        tie_prob = np.sum(all_probabilities[all_hands == player_hand_strength])
-        lose_prob = 1 - (win_prob + tie_prob)  
-        bluff_prob = 0.2 / opp.history.count("raise") if opp.history.count("raise") > 0 else 0
-        fold_ev = 0 - bluff_prob * self.pot
-        call_ev = (self.pot) * win_prob - (self.current_bet - player.total_bet) * lose_prob
-        raise_ev = (self.pot + self.current_bet) * win_prob - (2 * self.current_bet - player.total_bet) * (lose_prob +bluff_prob)
-        print(f"Start win Probability: {start_win_prob}, start Tie Probability: {start_tie_prob}, start Losing Probability: {start_lose_prob}")
-        print(f"Winning Probability: {win_prob}, Tie Probability: {tie_prob}, Losing Probability: {lose_prob}")
-        print(f"Raise: {raise_ev}, Call: {call_ev}, Fold: {fold_ev}")
-        print(opp.history)
-        if raise_ev > call_ev and raise_ev > fold_ev:
-            if player.money >= 2*self.current_bet:
-                self.raise_bet(player, self.current_bet)
-                player.history.append("raise")
-                print(player.name, "raise")
-                return "raise"
-            elif player.money >= self.current_bet:
-                self.call(player)
-                player.history.append("call")
-                print(player.name, "call")
-                return "call"
-        elif call_ev > raise_ev and call_ev > fold_ev:
-            if player.money >= self.current_bet:
-                self.call(player)
-                player.history.append("call")
-                print(player.name, "call")
-                return "call"
-            else:
-                self.fold(player)
-                player.history.append('fold')
-                print(player.name, "fold")
-                return "fold"
-        else:  
-            self.fold(player)
-            player.history.append("fold")
-            print(player.name, "fold")
-            return "fold"
-
     # def player_action1(self, player):
+    ### Comp Baseline Model
     #     if not player.in_hand or player.money <= 0:
     #         self.fold(player)
-    #     win_prob, tie_prob, lose_prob, hands, probs = self.win_prob(player)
-    #     fold_ev = 0
+    #         return "fold"
+
+    #     start_win_prob, start_tie_prob, start_lose_prob, all_hands, all_probabilities = self.win_prob(player)
+
+    #     for opponent in self.players:
+    #         if opponent != player:
+    #             opp = opponent
+    #             for action in opponent.history:
+    #                 if action == "call":
+    #                     all_probabilities = self.call_update(opponent, all_hands, all_probabilities)
+    #                 elif action == "raise":
+    #                         all_probabilities = self.raise_update(opponent, all_hands, all_probabilities)
+                        
+    #     player_hand_strength = player.evaluate_hand(self.board)
+    #     win_prob = np.sum(all_probabilities[all_hands > player_hand_strength])
+    #     tie_prob = np.sum(all_probabilities[all_hands == player_hand_strength])
+    #     lose_prob = 1 - (win_prob + tie_prob)  
+    #     bluff_prob = 0.2 / opp.history.count("raise") if opp.history.count("raise") > 0 else 0
+    #     fold_ev = 0 - bluff_prob * self.pot
     #     call_ev = (self.pot) * win_prob - (self.current_bet - player.total_bet) * lose_prob
-    #     raise_ev = (self.pot + self.current_bet) * win_prob - (2 * self.current_bet - player.total_bet) * lose_prob
-    #     if player.name == "Jack":
-    #       jack_fold = (data.jack_samples < 0.4 - win_prob).mean()
-    #       jack_call = ((0.4 - win_prob < data.jack_samples) & (data.jack_samples < 0.6 - win_prob)).mean()
-    #       jack_raise = (data.jack_samples > 0.6 - win_prob).mean()
-    #       values = [jack_fold, jack_call, jack_raise]
-    #       normal_draw = pm.draw(data.jack_normal)
-    #     else:
-    #       santi_fold = (data.santi_samples < 0.4 - win_prob).mean()
-    #       santi_call = ((0.4 - win_prob < data.santi_samples) & (data.santi_samples < 0.6 - win_prob)).mean()
-    #       santi_raise = (data.santi_samples > 0.6 - win_prob).mean()
-    #       values = [santi_fold, santi_call, santi_raise]
-    #       normal_draw = pm.draw(data.santi_normal)
-    #     santi_greater = (data.santi_samples > 0.1).mean()
-    #     labels = ["Fold", "Call", "Raise"]
+    #     raise_ev = (self.pot + self.current_bet) * win_prob - (2 * self.current_bet - player.total_bet) * (lose_prob +bluff_prob)
+    #     print(f"Start win Probability: {start_win_prob}, start Tie Probability: {start_tie_prob}, start Losing Probability: {start_lose_prob}")
+    #     print(f"Winning Probability: {win_prob}, Tie Probability: {tie_prob}, Losing Probability: {lose_prob}")
+    #     print(f"Raise: {raise_ev}, Call: {call_ev}, Fold: {fold_ev}")
+    #     print(opp.history)
+    #     if raise_ev > call_ev and raise_ev > fold_ev:
+    #         if player.money >= 2*self.current_bet:
+    #             self.raise_bet(player, self.current_bet)
+    #             player.history.append("raise")
+    #             print(player.name, "raise")
+    #             return "raise"
+    #         elif player.money >= self.current_bet:
+    #             self.call(player)
+    #             player.history.append("call")
+    #             print(player.name, "call")
+    #             return "call"
+    #     elif call_ev > raise_ev and call_ev > fold_ev:
+    #         if player.money >= self.current_bet:
+    #             self.call(player)
+    #             player.history.append("call")
+    #             print(player.name, "call")
+    #             return "call"
+    #         else:
+    #             self.fold(player)
+    #             player.history.append('fold')
+    #             print(player.name, "fold")
+    #             return "fold"
+    #     else:  
+    #         self.fold(player)
+    #         player.history.append("fold")
+    #         print(player.name, "fold")
+    #         return "fold"
+
+    def player_action1(self, player):
+        ## Model 2
+        if not player.in_hand or player.money <= 0:
+            self.fold(player)
+        win_prob, tie_prob, lose_prob, hands, probs = self.win_prob(player)
+        fold_ev = 0
+        call_ev = (self.pot) * win_prob - (self.current_bet - player.total_bet) * lose_prob
+        raise_ev = (self.pot + self.current_bet) * win_prob - (2 * self.current_bet - player.total_bet) * lose_prob
+        if player.name == "Jack":
+          jack_fold = (data.jack_samples < 0.4 - win_prob).mean()
+          jack_call = ((0.4 - win_prob < data.jack_samples) & (data.jack_samples < 0.6 - win_prob)).mean()
+          jack_raise = (data.jack_samples > 0.6 - win_prob).mean()
+          values = [jack_fold, jack_call, jack_raise]
+          normal_draw = pm.draw(data.jack_normal)
+        else:
+          santi_fold = (data.santi_samples < 0.4 - win_prob).mean()
+          santi_call = ((0.4 - win_prob < data.santi_samples) & (data.santi_samples < 0.6 - win_prob)).mean()
+          santi_raise = (data.santi_samples > 0.6 - win_prob).mean()
+          values = [santi_fold, santi_call, santi_raise]
+          normal_draw = pm.draw(data.santi_normal)
+        santi_greater = (data.santi_samples > 0.1).mean()
+        labels = ["Fold", "Call", "Raise"]
         # plt.bar(labels, values, color=["blue", "orange", "red"])
         # plt.ylabel("Proportion")
         # if player.name == "Jack":
@@ -259,29 +261,41 @@ class GutsGame:
         #   plt.title("Santi Probability of each Action")
         # plt.ylim(0, 1)
         # plt.show()
-        #print(fold_ev,call_ev, raise_ev)
-        # win_prob += normal_draw
-        # if win_prob < 0.4:
-        #     self.fold(player)
-        #     return "fold"
-        # elif win_prob < 0.6:
-        #     if player.money >= self.current_bet - player.total_bet:
-        #          self.call(player)
-        #          return "call"
-        #     else:
-        #          self.fold(player)
-        #          return "fold"
+        print(fold_ev,call_ev, raise_ev)
+        win_prob += normal_draw
+        if win_prob < 0.4:
+            self.fold(player)
+            player.history.append("fold")
+            print(player.name, "fold")
+            return "fold"
+        elif win_prob < 0.6:
+            if player.money >= self.current_bet - player.total_bet:
+                 self.call(player)
+                 print(player.name, "call")
+                 player.history.append("call")
+                 return "call"
+            else:
+                 self.fold(player)
+                 print(player.name, "fold")
+                 player.history.append("fold")
+                 return "fold"
 
-        # else:
-        #     if player.money >= self.current_bet + 1 - player.total_bet:
-        #         self.raise_bet(player, 1)
-        #         return "raise"
-        #     elif player.money >= self.current_bet - player.total_bet:
-        #         self.call(player)
-        #         return "call"
-        #     else:
-        #         self.fold(player)
-        #         return "fold"
+        else:
+            if player.money >= 2*self.current_bet:
+                self.raise_bet(player, self.current_bet)
+                player.history.append("raise")
+                print(player.name, "raise")
+                return "raise"
+            elif player.money >= self.current_bet - player.total_bet:
+                self.call(player)
+                print(player.name, "call")
+                player.history.append("call")
+                return "call"
+            else:
+                self.fold(player)
+                print(player.name, "fold")
+                player.history.append("fold")
+                return "fold"
 
     def get_probability_dist(self, player, win_prob, raise_count):
         bluff_prob = 0.2/(raise_count + 1)
@@ -311,8 +325,8 @@ class GutsGame:
         
 
 
-
     def player_action2(self, player):
+        ## Model 3
         if not player.in_hand or player.money <= 0:
             self.fold(player)
             return "fold"
@@ -343,8 +357,8 @@ class GutsGame:
         #print(f"Raise: {raise_ev}, Call: {call_ev}, Fold: {fold_ev}")
         maximum = max(fold_ev, call_ev, raise_ev)
         if maximum == raise_ev: 
-            if player.money >= self.current_bet + 1:
-                self.raise_bet(player, 1)
+            if player.money >= 2*self.current_bet:
+                self.raise_bet(player, self.current_bet)
                 player.history.append("raise")
                 print(player.name, "raise")
                 return "raise"
@@ -355,8 +369,8 @@ class GutsGame:
                 print(player.name, 'call')
                 return "call"
         else:  # Fold if probabilities are low
-            if random.random() < 0.2/(1 + player.history.count("Raise")) and player.money >= self.current_bet + 1:
-                self.raise_bet(player, 1)
+            if random.random() < 0.2/(1 + player.history.count("Raise")) and player.money >= 2*self.current_bet :
+                self.raise_bet(player, self.current_bet)
                 player.history.append("raise")
                 print(player.name, "raise")
                 return "raise"
@@ -365,6 +379,54 @@ class GutsGame:
                 player.history.append("fold")
                 print(player.name, 'fold')
                 return "fold"
+
+    # def player_action2(self, player):
+    #     ## Model 1 
+    #     if not player.in_hand or player.money <= 0:
+    #         self.fold(player)
+    #     win_prob, tie_prob, lose_prob,hands,probs = self.win_prob(player)
+    #     fold_ev = 0
+    #     call_ev = (self.pot) * win_prob - (self.current_bet - player.total_bet) * lose_prob
+    #     raise_ev = (self.pot + self.current_bet) * win_prob - (2 * self.current_bet - player.total_bet) * lose_prob
+    #     #print(fold_ev,call_ev, raise_ev)
+    #     if win_prob < 0.4:
+    #         if self.current_bet == player.total_bet:
+    #           player.history.append("check")
+    #           print(player.name,"check")
+    #           return "check"
+    #         self.fold(player)
+    #         player.history.append("fold")
+    #         print(player.name,"fold")
+    #         return "fold"
+    #     elif win_prob < 0.6:
+    #         if player.money >= self.current_bet - player.total_bet:
+    #              self.call(player)
+    #              player.history.append("call")
+    #              print(player.name,"call")
+    #              return "call"
+    #         else:
+    #              self.fold(player)
+    #              player.history.append("fold")
+    #              print(player.name,"fold")
+    #              return "fold"
+
+    #     else:
+    #         if player.money >= 2*self.current_bet:
+    #             self.raise_bet(player, self.current_bet)
+    #             player.history.append("raise")
+    #             print(player.name, "raise")
+    #             return "raise"
+    #         elif player.money >= self.current_bet - player.total_bet:
+    #             self.call(player)
+    #             player.history.append("call")
+    #             print(player.name,"call")
+    #             return "call"
+    #         else:
+    #             self.fold(player)
+    #             player.history.append("fold")
+    #             print(player.name,"fold")
+    #             return "fold"
+
 
     def determine_winner(self):
         active_players = [p for p in self.players if p.in_hand]
@@ -418,18 +480,19 @@ class GutsGame:
         return winner
 
     def play_game(self):
+        rounds = 0
         while all(p.money > 0 for p in self.players):
             print(f"Starting a new round. Pot: ${self.pot}")
             winner = self.play_round()
-            
+            rounds +=1
             if winner:
                 print(f"{winner.name} wins the pot! Current money: {winner.money}")
 
         winner = max(self.players, key=lambda p: p.money)
         print(f"Game over! The winner is {winner.name} with ${winner.money}")
+        print('Rounds',rounds)
 
-
-player1 = Player("Comp", 1000)
-player2 = Player("Human", 1000)
+player1 = Player("Model2", 5000)
+player2 = Player("Model3", 5000)
 game = GutsGame(player1,player2)
 game.play_game()
