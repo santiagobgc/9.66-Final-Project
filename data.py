@@ -72,11 +72,8 @@ game2 = [
     ("KC,2H,7C,7D,4D", "7H,5H", "3H, 4C"),
 ]
 
-# Function to convert card strings to Treys card objects
 def parse_cards(card_string):
     return [Card.new(card.strip()[0]+card.strip()[1].lower()) for card in card_string.split(',')]
-
-# Parsing data into separate lists
 
 for board, hand1, hand2 in game2:
     boards.append(parse_cards(board))
@@ -143,7 +140,6 @@ with pm.Model() as model:
     raise_normal = pm.Normal("raise_normal", mu=raise_winprob_change_mean, sigma=raise_winprob_change_sd)
     trace = pm.sample(2000, return_inferencedata=True, cores=2)
 
-# Extract samples
 jack_samples = trace.posterior["jack_normal"].values.flatten()
 santi_samples = trace.posterior["santi_normal"].values.flatten()
 raise_samples = trace.posterior["raise_normal"].values.flatten()
