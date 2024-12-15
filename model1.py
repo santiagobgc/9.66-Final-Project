@@ -117,8 +117,6 @@ class GutsGame:
         raise_ev = (self.pot + self.current_bet) * win_prob - (2 * self.current_bet - player.total_bet) * lose_prob
         #print(fold_ev,call_ev, raise_ev)
         if win_prob < 0.4:
-            if self.current_bet == player.total_bet:
-              return "check"
             self.fold(player)
             return "fold"
         elif win_prob < 0.6:
@@ -130,8 +128,8 @@ class GutsGame:
                  return "fold"
 
         else:
-            if player.money >= self.current_bet + 1 - player.total_bet:
-                self.raise_bet(player, 1)
+            if player.money >= 2 * self.current_bet - player.total_bet:
+                self.raise_bet(player, current_bet)
                 return "raise"
             elif player.money >= self.current_bet - player.total_bet:
                 self.call(player)
