@@ -151,8 +151,8 @@ class GutsGame:
                  return "fold"
 
         else:
-            if player.money >= self.current_bet + 1 - player.total_bet:
-                self.raise_bet(player, 1)
+            if player.money >= 2 * self.current_bet - player.total_bet:
+                self.raise_bet(player, current_bet)
                 return "raise"
             elif player.money >= self.current_bet - player.total_bet:
                 self.call(player)

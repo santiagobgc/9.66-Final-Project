@@ -1,4 +1,11 @@
-#Model 3
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Dec 10 20:44:46 2024
+
+@author: jackmarionsims
+"""
+
 import pymc as pm
 import data
 import random
@@ -18,7 +25,7 @@ class Player:
         self.name = name
         self.money = money
         self.cards = []
-        self.in_hand = True  # Whether the player is still in the hand
+        self.in_hand = True
         self.total_bet = 0
         self.history = []
 
@@ -124,8 +131,6 @@ class GutsGame:
         return (win_prob, tie_prob, loss_prob,all_strengths,all_probabilities)
     
     def get_probability_dist(self, player, win_prob, raise_count):
-        bluff_prob = 0.2/(raise_count + 1)
-        fold_call_boundary = (-bluff_prob*self.pot+self.current_bet-player.total_bet) / (self.pot +self.current_bet - player.total_bet)
         if player.name == "Jack":
             opponent_fold_if_raise = (0.5 - raise_count * data.raise_samples  + data.santi_samples + (1 + player.history.count("raise")) * data.raise_samples < 0.4).mean()
         else:
@@ -171,7 +176,7 @@ class GutsGame:
         else:
           plt.title("Santi Probability of each Action")
         plt.ylim(0, 1)
-        plt.show()
+        #plt.show()
         win_prob += normal_draw
         win_prob = max(win_prob, 0)
         win_prob = min(win_prob, 1)
@@ -181,19 +186,19 @@ class GutsGame:
                 player.history.append("call")
                 print(player.name, 'call')
                 return "call"
-            if player.money >= self.current_bet + 1:
-                self.raise_bet(player, 1)
+            if player.money >= 2 * self.current_bet - player.total_bet :
+                self.raise_bet(player, self.current_bet)
                 player.history.append("raise")
                 print(player.name, "raise")
                 return "raise"
-        elif win_prob > 0.4:  # Example threshold for calling
-            if player.money >= self.current_bet:
+        elif win_prob > 0.4:
+            if player.money >= self.current_bet - player.total_bet:
                 self.call(player)
                 player.history.append("call")
                 print(player.name, 'call')
                 return "call"
         else:
-            if random.random() < 0.2/(1 + player.history.count("Raise")) and player.money >= self.current_bet + 1:
+            if random.random() < 0.2/(1 + player.history.count("Raise")) and player.money >= 2 * self.current_bet - player.total_bet:
                 self.raise_bet(player, 1)
                 player.history.append("raise")
                 print(player.name, "raise")
@@ -219,7 +224,8 @@ class GutsGame:
     def play_round(self, number):
         self.round_id += 1
         self.shuffle_deck()
-        self.real_game(data.boards[number], data.santi_hands[number], data.jack_hands[number])
+        self.deal_cards()
+        #self.real_game(data.boards[number], data.santi_hands[number], data.jack_hands[number])
         self.pot = 0
         self.current_bet = 0
 
@@ -257,7 +263,7 @@ class GutsGame:
     def play_game(self):
         while all(p.money > 0 for p in self.players):
             #print(f"Starting a new round. Pot: ${self.pot}")
-            winner = self.play_round()
+            winner = self.play_round(1)
             if winner:
                 pass
                 #print(f"{winner.name} wins the pot! Current money: {winner.money}")
@@ -266,17 +272,11 @@ class GutsGame:
         #print(f"Game over! The winner is {winner.name} with ${winner.money}")
 
 
-# Example usage
 all_actions = []
-player1 = Player("Santi", 10)
-player2 = Player("Jack", 10)
-
-for i in range(500):
-  game = GutsGame(player1,player2)
-  game.player1.money = data.santi_money[6]
-  game.player2.money = data.jack_money[6]
-  game.play_round(6)
-  print('')
+player1 = Player("Santi", 1000)
+player2 = Player("Jack", 1000)
+game = GutsGame(player1, player2)
+game.play_game()
 #print(all_actions.count(["raise",'call']) / len(all_actions))
 
 
