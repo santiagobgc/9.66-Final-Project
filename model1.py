@@ -129,7 +129,7 @@ class GutsGame:
 
         else:
             if player.money >= 2 * self.current_bet - player.total_bet:
-                self.raise_bet(player, current_bet)
+                self.raise_bet(player, self.current_bet)
                 return "raise"
             elif player.money >= self.current_bet - player.total_bet:
                 self.call(player)
