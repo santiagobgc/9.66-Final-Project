@@ -199,7 +199,7 @@ class GutsGame:
                 return "call"
         else:
             if random.random() < 0.2/(1 + player.history.count("Raise")) and player.money >= 2 * self.current_bet - player.total_bet:
-                self.raise_bet(player, 1)
+                self.raise_bet(player, self.current_bet)
                 player.history.append("raise")
                 print(player.name, "raise")
                 return "raise"

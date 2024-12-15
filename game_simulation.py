@@ -202,7 +202,7 @@ class GutsGame:
     #     print(f"Raise: {raise_ev}, Call: {call_ev}, Fold: {fold_ev}")
     #     print(opp.history)
     #     if raise_ev > call_ev and raise_ev > fold_ev:
-    #         if player.money >= 2*self.current_bet:
+    #         if player.money >= 2*self.current_bet - player.total_bet:
     #             self.raise_bet(player, self.current_bet)
     #             player.history.append("raise")
     #             print(player.name, "raise")
@@ -279,7 +279,7 @@ class GutsGame:
                  return "fold"
 
         else:
-            if player.money >= 2*self.current_bet:
+            if player.money >= 2*self.current_bet - player.total_bet:
                 self.raise_bet(player, self.current_bet)
                 player.history.append("raise")
                 print(player.name, "raise")
@@ -355,7 +355,7 @@ class GutsGame:
         #print(f"Raise: {raise_ev}, Call: {call_ev}, Fold: {fold_ev}")
         maximum = max(fold_ev, call_ev, raise_ev)
         if maximum == raise_ev: 
-            if player.money >= 2*self.current_bet:
+            if player.money >= 2*self.current_bet - player.total_bet:
                 self.raise_bet(player, self.current_bet)
                 player.history.append("raise")
                 print(player.name, "raise")
@@ -367,7 +367,7 @@ class GutsGame:
                 print(player.name, 'call')
                 return "call"
         else:  # Fold if probabilities are low
-            if random.random() < 0.2/(1 + player.history.count("Raise")) and player.money >= 2*self.current_bet :
+            if random.random() < 0.2/(1 + player.history.count("Raise")) and player.money >= 2*self.current_bet -player.total_bet:
                 self.raise_bet(player, self.current_bet)
                 player.history.append("raise")
                 print(player.name, "raise")
@@ -409,7 +409,7 @@ class GutsGame:
     #              return "fold"
 
     #     else:
-    #         if player.money >= 2*self.current_bet:
+    #         if player.money >= 2*self.current_bet - player.total_bet:
     #             self.raise_bet(player, self.current_bet)
     #             player.history.append("raise")
     #             print(player.name, "raise")

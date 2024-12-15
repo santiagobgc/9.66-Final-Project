@@ -118,24 +118,30 @@ class GutsGame:
         #print(fold_ev,call_ev, raise_ev)
         if win_prob < 0.4:
             self.fold(player)
+            player.history.append("fold")
             return "fold"
         elif win_prob < 0.6:
             if player.money >= self.current_bet - player.total_bet:
                  self.call(player)
+                 player.history.append("call")
                  return "call"
             else:
                  self.fold(player)
+                 player.history.append("fold")
                  return "fold"
 
         else:
             if player.money >= 2 * self.current_bet - player.total_bet:
-                self.raise_bet(player, current_bet)
+                self.raise_bet(player, self.current_bet)
+                player.history.append("raise")
                 return "raise"
             elif player.money >= self.current_bet - player.total_bet:
                 self.call(player)
+                player.history.append("call")
                 return "call"
             else:
                 self.fold(player)
+                player.history.append("fold")
                 return "fold"
 
 
